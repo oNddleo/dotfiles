@@ -32,6 +32,8 @@ View file input
 
 ### 12. K9s
 
+### 13. TPM (Tmux Plugin Manager)
+
 ---
 
 ### 1. **Ensure Your Directory Structure is Correct**

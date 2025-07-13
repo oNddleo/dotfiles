@@ -22,6 +22,7 @@ return {
 				"java",
 				"json",
 				"zig",
+				"rust",
 			},
 			sync_install = false,
 			highlight = { enable = true },
