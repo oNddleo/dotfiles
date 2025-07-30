@@ -1,0 +1,16 @@
+# Starship configuration for tmux to prevent cursor position queries
+format = """
+$all\
+$character"""
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+# Disable modules that might query cursor position
+[cmd_duration]
+disabled = false
+min_time = 2000
+
+# Ensure no cursor position queries
+add_newline = false

@@ -126,4 +126,18 @@ config env --default | save ~/.config/nushell/env.nu
 
 ### Zoxide
 
+
+### Atuin
+
+```console
+mkdir ~/.local/share/atuin/
+atuin init nu | save ~/.local/share/atuin/init.nu
+```
+
+```console
+source ~/.local/share/atuin/init.nu
+```
+
+### Asdf
+
 Let me know if you need help adjusting the paths!

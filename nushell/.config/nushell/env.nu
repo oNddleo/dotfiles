@@ -11,11 +11,10 @@ if ('/opt/homebrew/bin/brew' | path exists) {
 
 # Test if brew is now accessible
 if (which brew | length) == 0 {
-    print "(ansi red)ERROR: Homebrew still not accessible!(ansi reset)"
-    print $"PATH: ($env.PATH)"
+     print "(ansi red)ERROR: Homebrew still not accessible!(ansi reset)"
 } else {
-    print "(ansi green)✓ Homebrew accessible(ansi reset)"
-}
+     print "(ansi green)✓ Homebrew accessible(ansi reset)"
+ }
 
 # Directories for scripts and plugins
 $env.NU_LIB_DIRS = [
@@ -32,11 +31,15 @@ let additional_paths = [
     '/opt/homebrew/bin'
     '/opt/homebrew/sbin'
     '/usr/local/bin'
+    '/usr/bin'
+    '/usr/sbin'
+    '/bin'
+    '/sbin'
+    '/opt/nvim-linux64/bin'
     '/usr/local/sbin'
-    ($env.HOME | path join '.cargo' 'bin')
     ($env.HOME | path join '.local' 'bin')
-    ($env.HOME | path join 'go' 'bin')
-    ($env.HOME | path join '.npm-global' 'bin')
+    ($env.HOME | path join '.asdf' 'shims')
+    ($env.HOME | path join '.asdf' 'bin')
 ]
 
 $env.PATH = ($env.PATH | split row (char esep) | prepend ($additional_paths | where { |p| $p | path exists }) | uniq)
@@ -59,10 +62,11 @@ $env.LANG = "en_US.UTF-8"
 $env.LC_ALL = "en_US.UTF-8"
 
 # Development tools
-$env.CARGO_HOME = ($env.HOME | path join '.cargo')
-$env.GOPATH = ($env.HOME | path join 'go')
-$env.NPM_CONFIG_PREFIX = ($env.HOME | path join '.npm-global')
 $env.PYTHONDONTWRITEBYTECODE = "1"
+
+# asdf setup - will be loaded at runtime
+$env.ASDF_DIR = ($env.HOME | path join '.asdf')
+$env.ASDF_DATA_DIR = $env.ASDF_DIR
 
 # Terminal settings
 $env.LESS = "-R -F -X"
@@ -93,6 +97,12 @@ if ($home_env | path exists) {
 if (which starship | length) > 0 {
     mkdir ($env.HOME | path join '.cache' 'starship')
     $env.STARSHIP_SHELL = "nu"
+}
+
+# Atuin setup
+if (which atuin | length) > 0 {
+    $env.ATUIN_NOBIND = "true"
+    mkdir ($env.HOME | path join '.local' 'share' 'atuin')
 }
 
 # Create important directories

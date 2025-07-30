@@ -25,6 +25,7 @@ brew "dust"         # du replacement
 brew "tokei"        # cloc replacement
 brew "hyperfine"    # benchmarking
 brew "delta"        # git diff viewer
+brew "stow"
 
 # Development tools
 brew "git"
@@ -40,13 +41,15 @@ brew "jless"
 brew "wget"
 brew "htop"
 brew "btop"
+brew "atuin"
 
 # Programming languages & tools
-brew "node"
-brew "python3"
-brew "rust"
-brew "go"
-brew "ruby"
+#brew "node"
+#brew "python3"
+#brew "rust"
+#brew "go"
+#brew "ruby"
+brew "asdf"
 
 # Nushell
 brew "nushell"

@@ -1,22 +1,6 @@
 # Nushell Config File
 #
 # version = "0.106.0"
-def "load bash env" [] {
-    # Load bash PATH and environment variables
-    let bash_env = (bash -c 'echo $PATH' | str trim)
-    $env.PATH = ($bash_env | split row ":")
-    
-    # Load bash aliases as Nushell aliases
-    bash -c 'alias' | lines | each { |line|
-        if ($line | str contains "=") {
-            let parts = ($line | split column "=" --max-split 2)
-            alias ($parts.0) = ($parts.1 | str trim -c "'\"")
-        }
-    }
-}
-
-# Call the function
-load bash env
 
 $env.config.color_config = {
     separator: white
@@ -83,6 +67,32 @@ $env.config.color_config = {
         attr: b
     }
 }
+$env.STARSHIP_SHELL = "nu"
+$env.config.shell_integration = {
+	osc2: false
+	osc7: false
+	osc8: false
+	osc9_9: false
+	osc133: false
+	osc633: false
+	reset_application_mode: false
+}
+$env.config.use_ansi_coloring = true
+def create_left_prompt [] {
+    starship prompt --cmd-duration $env.CMD_DURATION_MS $'--status=($env.LAST_EXIT_CODE)' | str replace '\u{1b}\[[0-9;]*R' ''
+}
+
+# Use nushell functions to define your right and left prompt
+$env.PROMPT_COMMAND = { || create_left_prompt }
+$env.PROMPT_COMMAND_RIGHT = ""
+
+# The prompt indicators are environmental variables that represent
+# the state of the prompt
+$env.PROMPT_INDICATOR = ""
+$env.PROMPT_INDICATOR_VI_INSERT = ": "
+$env.PROMPT_INDICATOR_VI_NORMAL = "〉"
+$env.PROMPT_MULTILINE_INDICATOR = "::: "
+
 # Load starship prompt - Fixed version
 if (which starship | length) > 0 {
     let starship_cache = ($env.HOME | path join '.cache' 'starship' 'init.nu')
@@ -96,6 +106,9 @@ if (which starship | length) > 0 {
         # Fallback: regenerate and use exec
         starship init nu | save -f ~/.cache/starship/init.nu
         exec nu
+    }
+    if ($env.TMUX? | is-not-empty) {
+        $env.STARSHIP_CONFIG = ($env.HOME | path join '.config' 'starship-tmux.toml')
     }
 }
 
@@ -160,7 +173,7 @@ let dark_theme = {
 }
 # General settings
 $env.config = {
-    show_banner: false
+    show_banner: true
     footer_mode: "auto"
     float_precision: 2
     use_ansi_coloring: true
@@ -331,11 +344,24 @@ $env.config = {
             event: { send: menuprevious }
         }
         {
-            name: history_menu
+            name: atuin_history
             modifier: control
             keycode: char_r
             mode: emacs
-            event: { send: menu name: history_menu }
+            event: {
+                send: executehostcommand
+                cmd: "atuin search --interactive --shell-up-key-binding (commandline)"
+            }
+        }
+        {
+            name: atuin_up_search
+            modifier: none
+            keycode: up
+            mode: emacs
+            event: {
+                send: executehostcommand
+                cmd: "atuin search --interactive --shell-up-key-binding (commandline)"
+            }
         }
         {
             name: next_page
@@ -450,6 +476,46 @@ alias ps = procs
 alias du = dust
 alias top = btop
 
+# Kubernetes
+alias k = kubectl
+alias kp = kubectl port-forward
+alias kaf = kubectl apply -f
+alias kdf = kubectl delete -f
+alias hi = helm install
+alias hu = helm update
+alias h = helm
+alias t = tmux
+
+# SSL/TLS certificate configuration
+$env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
+$env.SSL_CERT_DIR = "/etc/ssl/certs"
+$env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+$env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+
+# Tool-specific certificate configuration
+$env.BUN_CA_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
+$env.DENO_CERT = "/etc/ssl/certs/ca-certificates.crt"
+$env.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
+$env.NODE_OPTIONS = "--use-openssl-ca"
+
+# Load asdf for Nushell
+if ('~/.asdf/asdf.nu' | path expand | path exists) {
+    source ~/.asdf/asdf.nu
+}
+# Atuin integration
+if (which atuin | length) > 0 {
+    source ~/.local/share/atuin/init.nu
+    $env.ATUIN_SESSION = (atuin uuid)
+    $env.config.hooks.pre_prompt = ($env.config.hooks.pre_prompt | append {||
+        if 'ATUIN_HISTORY_ID' in $env {
+            atuin history end --exit $env.LAST_EXIT_CODE $env.ATUIN_SESSION
+        }
+    })
+    $env.config.hooks.pre_execution = ($env.config.hooks.pre_execution | append {||
+        $env.ATUIN_HISTORY_ID = (atuin history start (commandline | str trim))
+    })
+}
+
 # Custom functions
 def git-cleanup [] {
     git branch --merged | lines | where $it !~ "main|master|\\*" | each { |branch| git branch -d $branch }
@@ -462,5 +528,36 @@ def mkcd [path: string] {
 
 def weather [city?: string] {
     let location = if ($city | is-empty) { "" } else { $city }
-    http get $"https://wttr.in/($location)?format=3"
+    try {
+        http get $"https://wttr.in/($location)?format=3"
+    } catch {
+        echo "Failed to fetch weather data. Check your internet connection."
+    }
+}
+
+def system [] {
+    let cpu_info = (sys cpu | first | get brand)
+    let cpu_cores = (sys cpu | length)
+    let mem_info = (sys mem)
+    let mem_used = ($mem_info.used | into filesize)
+    let mem_total = ($mem_info.total | into filesize)
+    let mem_percent = (($mem_info.used / $mem_info.total) * 100 | math round --precision 1)
+    
+    let disk_info = (sys disks | where mount == "/" | first)
+    let disk_free = ($disk_info.free | into filesize)
+    let disk_total = ($disk_info.total | into filesize)
+    let disk_used_bytes = ($disk_info.total - $disk_info.free)
+    let disk_used = ($disk_used_bytes | into filesize)
+    let disk_percent = (($disk_used_bytes / $disk_info.total) * 100 | math round --precision 1)
+    
+    print $"╭─────────────────────────────────────────────────────────────╮"
+    print $"│ (ansi green_bold)System Information(ansi reset)                                      │"
+    print $"├─────────────────────────────────────────────────────────────┤"
+    print $"│ (ansi cyan_bold)CPU:(ansi reset) ($cpu_info)                                │"
+    print $"│ (ansi yellow_bold)Cores:(ansi reset) ($cpu_cores)                                             │"
+    print $"├─────────────────────────────────────────────────────────────┤"
+    print $"│ (ansi blue_bold)Memory:(ansi reset) ($mem_used) / ($mem_total) \(($mem_percent)%\)      │"
+    print $"├─────────────────────────────────────────────────────────────┤"
+    print $"│ (ansi purple_bold)Disk:(ansi reset) ($disk_used) / ($disk_total) \(($disk_percent)%\)        │"
+    print $"╰─────────────────────────────────────────────────────────────╯"
 }
