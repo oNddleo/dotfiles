@@ -46,7 +46,7 @@ return {
 							importEnforceGranularity = true,
 							importPrefix = "crate",
 						},
-						checkOnSave = {
+						check = {
 							command = "clippy",
 							extraArgs = { "--no-deps" },
 							allTargets = false,

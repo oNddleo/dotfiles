@@ -96,4 +96,34 @@ View file input
    ln -s ~/.dotfiles/nvim ~/.config/nvim
    ```
 
+---
+
+### NuShell
+
+```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Nushell
+brew install nushell
+
+# Install packages from Brewfile
+brew bundle
+
+# Set Nushell as default shell
+echo '/opt/homebrew/bin/nu' | sudo tee -a /etc/shells
+chsh -s /opt/homebrew/bin/nu
+
+# Create config directories
+mkdir -p ~/.config/nushell
+mkdir -p ~/.config/nushell/scripts
+mkdir -p ~/.config/nushell/plugins
+
+# Initialize configurations (run these in nushell)
+config nu --default | save ~/.config/nushell/config.nu
+config env --default | save ~/.config/nushell/env.nu
+```
+
+### Zoxide
+
 Let me know if you need help adjusting the paths!
