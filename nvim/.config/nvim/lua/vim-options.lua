@@ -18,6 +18,10 @@ vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
 vim.keymap.set("x", "<leader>p", '"_dP')
 vim.opt.colorcolumn = "94"
 -- fk llm-ls
+vim.o.shell = '/opt/homebrew/bin/nu'
+vim.o.shellcmdflag = '-c'
+vim.o.shellquote = ''
+vim.o.shellxquote = ''
 local notify_original = vim.notify
 vim.notify = function(msg, ...)
 	if

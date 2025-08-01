@@ -51,6 +51,10 @@ brew "atuin"
 #brew "ruby"
 brew "asdf"
 
+# Tool
+brew "awscli"
+
+
 # Nushell
 brew "nushell"
 

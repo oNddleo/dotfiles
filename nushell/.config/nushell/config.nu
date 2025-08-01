@@ -344,26 +344,6 @@ $env.config = {
             event: { send: menuprevious }
         }
         {
-            name: atuin_history
-            modifier: control
-            keycode: char_r
-            mode: emacs
-            event: {
-                send: executehostcommand
-                cmd: "atuin search --interactive --shell-up-key-binding (commandline)"
-            }
-        }
-        {
-            name: atuin_up_search
-            modifier: none
-            keycode: up
-            mode: emacs
-            event: {
-                send: executehostcommand
-                cmd: "atuin search --interactive --shell-up-key-binding (commandline)"
-            }
-        }
-        {
             name: next_page
             modifier: control
             keycode: char_x
@@ -487,32 +467,49 @@ alias h = helm
 alias t = tmux
 
 # SSL/TLS certificate configuration
-$env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
-$env.SSL_CERT_DIR = "/etc/ssl/certs"
-$env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
-$env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+# $env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
+# $env.SSL_CERT_DIR = "/etc/ssl/certs"
+# $env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+# $env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
 
 # Tool-specific certificate configuration
-$env.BUN_CA_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
-$env.DENO_CERT = "/etc/ssl/certs/ca-certificates.crt"
-$env.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
-$env.NODE_OPTIONS = "--use-openssl-ca"
+# $env.BUN_CA_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
+# $env.DENO_CERT = "/etc/ssl/certs/ca-certificates.crt"
+# $env.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
+# $env.NODE_OPTIONS = "--use-openssl-ca"
 
 # Load asdf for Nushell
 if ('~/.asdf/asdf.nu' | path expand | path exists) {
     source ~/.asdf/asdf.nu
 }
-# Atuin integration
+# Atuin integration - Clean version
 if (which atuin | length) > 0 {
     source ~/.local/share/atuin/init.nu
-    $env.ATUIN_SESSION = (atuin uuid)
-    $env.config.hooks.pre_prompt = ($env.config.hooks.pre_prompt | append {||
-        if 'ATUIN_HISTORY_ID' in $env {
-            atuin history end --exit $env.LAST_EXIT_CODE $env.ATUIN_SESSION
+    # Generate session ID
+    $env.ATUIN_SESSION = (atuin uuid | str replace -a "-" "")
+    hide-env -i ATUIN_HISTORY_ID
+    
+    # Pre-execution hook
+    let atuin_pre_execution = {||
+        if ($nu | get history-enabled) == false {
+            return
         }
-    })
-    $env.config.hooks.pre_execution = ($env.config.hooks.pre_execution | append {||
-        $env.ATUIN_HISTORY_ID = (atuin history start (commandline | str trim))
+        let cmd = (commandline)
+        if ($cmd | is-empty) {
+            return
+        }
+        # Don't record keybinding commands
+        if not ($cmd | str starts-with "# atuin-") {
+            $env.ATUIN_HISTORY_ID = (atuin history start -- $cmd)
+        }
+    }
+    
+    $env.config.keybindings = ($env.config.keybindings | append {
+        name: atuin_up_search
+        modifier: none
+        keycode: up
+        mode: [emacs, vi_normal, vi_insert]
+        event: { send: executehostcommand cmd: (_atuin_search_cmd) }
     })
 }
 

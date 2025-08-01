@@ -126,7 +126,6 @@ config env --default | save ~/.config/nushell/env.nu
 
 ### Zoxide
 
-
 ### Atuin
 
 ```console
@@ -139,5 +138,44 @@ source ~/.local/share/atuin/init.nu
 ```
 
 ### Asdf
+
+- NodeJS
+
+```console
+asdf plugin add nodejs https://github.com/asdf-vm/asdf-nodejs.git
+```
+
+- Golang
+
+```console
+asdf plugin add golang https://github.com/asdf-community/asdf-golang.git
+
+```
+
+- Rust
+
+```console
+asdf plugin add rust https://github.com/asdf-community/asdf-rust.git
+```
+
+- Python
+
+```console
+asdf plugin add uv
+```
+
+```console
+# Show all installable versions
+asdf list all uv
+
+# Install specific version
+asdf install uv latest
+
+# Set a version globally (on your ~/.tool-versions file)
+asdf set -u uv latest
+
+# Now uv commands are available
+uv --version
+```
 
 Let me know if you need help adjusting the paths!
