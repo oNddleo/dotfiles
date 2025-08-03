@@ -492,13 +492,13 @@ if (which atuin | length) > 0 {
         }
     }
     
-    $env.config.keybindings = ($env.config.keybindings | append {
-        name: atuin_up_search
-        modifier: none
-        keycode: up
-        mode: [emacs, vi_normal, vi_insert]
-        event: { send: executehostcommand cmd: (_atuin_search_cmd) }
-    })
+    # $env.config.keybindings = ($env.config.keybindings | append {
+    #     name: atuin_up_search
+    #     modifier: none
+    #     keycode: up
+    #     mode: [emacs, vi_normal, vi_insert]
+    #     event: { send: executehostcommand cmd: (_atuin_search_cmd) }
+    # })
 }
 
 # Custom functions
