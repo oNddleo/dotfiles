@@ -71,13 +71,13 @@ if is_mac then
 	-- If exit insert mode, in command mode -> eng layout,
 	-- save the current layout to the variable, then use it for the
 	-- next insert time
-	vim.api.nvim_create_autocmd("InsertLeave", {
-		callback = function()
-			local current = get_current_layout()
-			last_insert_layout = current
-			os.execute("im-select " .. english_layout)
-		end,
-	})
+	-- vim.api.nvim_create_autocmd("InsertLeave", {
+	-- 	callback = function()
+	-- 		local current = get_current_layout()
+	-- 		last_insert_layout = current
+	-- 		os.execute("im-select " .. english_layout)
+	-- 	end,
+	-- })
 
 	-- mode change to normal -> eng layout
 	vim.api.nvim_create_autocmd({ "CmdlineEnter" }, {
