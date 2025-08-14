@@ -40,6 +40,7 @@ let additional_paths = [
     ($env.HOME | path join '.local' 'bin')
     ($env.HOME | path join '.asdf' 'shims')
     ($env.HOME | path join '.asdf' 'bin')
+    /Applications/Xcode.app/Contents/Developer/usr/bin
 ]
 
 $env.PATH = ($env.PATH | split row (char esep) | prepend ($additional_paths | where { |p| $p | path exists }) | uniq)
@@ -56,9 +57,13 @@ if ('/opt/homebrew/bin/brew' | path exists) {
 }
 
 # Basic environment variables
-$env.EDITOR = (which code | get path.0? | default "vim")
+$env.EDITOR = (
+  if (which nvim | is-empty) {
+    if (which vim | is-empty) { "nano" } else { "vim" }
+  } else { "nvim" }
+)
 $env.VISUAL = $env.EDITOR
-$env.LANG = "en_US.UTF-8"
+$env.LANG   = "en_US.UTF-8"
 $env.LC_ALL = "en_US.UTF-8"
 
 # Development tools
@@ -72,8 +77,8 @@ $env.ASDF_DATA_DIR = $env.ASDF_DIR
 $env.LESS = "-R -F -X"
 $env.PAGER = "less"
 
-# FZF settings
-$env.FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border"
+# fzf settings
+$env.FZF_DEFAULT_OPTS = "--layout=reverse --border=none --color=bg:-1,bg+:-1,gutter:-1,border:-1"
 if (which fd | length) > 0 {
     $env.FZF_DEFAULT_COMMAND = "fd --type f --hidden --follow --exclude .git"
 }
@@ -99,12 +104,6 @@ if (which starship | length) > 0 {
     $env.STARSHIP_SHELL = "nu"
 }
 
-# Atuin setup
-if (which atuin | length) > 0 {
-    $env.ATUIN_NOBIND = "true"
-    mkdir ($env.HOME | path join '.local' 'share' 'atuin')
-}
-
 # Create important directories
 [
     ($env.HOME | path join '.local' 'bin')
@@ -113,3 +112,15 @@ if (which atuin | length) > 0 {
     ($nu.default-config-dir | path join 'scripts')
     ($nu.default-config-dir | path join 'completions')
 ] | each { |dir| if not ($dir | path exists) { mkdir $dir } } | ignore
+
+# SSL/TLS certificate configuration
+# $env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
+# $env.SSL_CERT_DIR = "/etc/ssl/certs"
+# $env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+# $env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
+
+# Tool-specific certificate configuration
+# $env.BUN_CA_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
+# $env.DENO_CERT = "/etc/ssl/certs/ca-certificates.crt"
+# $env.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
+# $env.NODE_OPTIONS = "--use-openssl-ca"

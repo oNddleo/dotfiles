@@ -332,11 +332,11 @@ $env.config = {
             event: { send: menuprevious }
         }
         {
-            name: next_page
+            name: fzf-history
+            mode: [emacs,vi_insert,vi_normal]
             modifier: control
-            keycode: char_x
-            mode: emacs
-            event: { send: menupagenext }
+            keycode: char_r
+            event: { send: executehostcommand, cmd: "hist-fzf" }
         }
         {
             name: undo_or_previous_page
@@ -427,6 +427,39 @@ $env.config = {
                 ]
             }
         }
+        {
+            name: fzf-file
+            mode: ["emacs","vi_insert","vi_normal"]
+            modifier: control
+            keycode: char_f
+            event: { send: executehostcommand, cmd: "fzf-file -m" }
+        }
+        { 
+            name: fzf-open-file, 
+            mode: ["emacs","vi_insert","vi_normal"], 
+            modifier: control, 
+            keycode: char_o,
+            event: { send: executehostcommand, cmd: "fzf-open --cd -m" } 
+        }
+        {   
+            name: fzf-cd,   
+            mode: ["emacs","vi_insert","vi_normal"], 
+            modifier: control,     
+            keycode: char_c,
+            event: { send: executehostcommand, cmd: "fzf-cd" } 
+        }
+        {
+            name: fzf-git-file
+            mode: [emacs, vi_insert, vi_normal]
+            modifier: control
+            keycode: char_g
+            event: {
+                until: [
+                { edit: InsertString, value: "fzf-git-file -m" }
+                { send: Enter }
+                ]
+            }
+        }
     ]
 }
 
@@ -454,52 +487,185 @@ alias hu = helm update
 alias h = helm
 alias t = tmux
 
-# SSL/TLS certificate configuration
-# $env.SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt"
-# $env.SSL_CERT_DIR = "/etc/ssl/certs"
-# $env.REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
-# $env.CURL_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt"
-
-# Tool-specific certificate configuration
-# $env.BUN_CA_BUNDLE_PATH = "/etc/ssl/certs/ca-certificates.crt"
-# $env.DENO_CERT = "/etc/ssl/certs/ca-certificates.crt"
-# $env.NODE_EXTRA_CA_CERTS = "/etc/ssl/certs/ca-certificates.crt"
-# $env.NODE_OPTIONS = "--use-openssl-ca"
-
 # Load asdf for Nushell
 if ('~/.asdf/asdf.nu' | path expand | path exists) {
     source ~/.asdf/asdf.nu
 }
-# Atuin integration - Clean version
-if (which atuin | length) > 0 {
-    source ~/.local/share/atuin/init.nu
-    # Generate session ID
-    $env.ATUIN_SESSION = (atuin uuid | str replace -a "-" "")
-    hide-env -i ATUIN_HISTORY_ID
-    
-    # Pre-execution hook
-    let atuin_pre_execution = {||
-        if ($nu | get history-enabled) == false {
-            return
-        }
-        let cmd = (commandline)
-        if ($cmd | is-empty) {
-            return
-        }
-        # Don't record keybinding commands
-        if not ($cmd | str starts-with "# atuin-") {
-            $env.ATUIN_HISTORY_ID = (atuin history start -- $cmd)
-        }
-    }
-    
-    # $env.config.keybindings = ($env.config.keybindings | append {
-    #     name: atuin_up_search
-    #     modifier: none
-    #     keycode: up
-    #     mode: [emacs, vi_normal, vi_insert]
-    #     event: { send: executehostcommand cmd: (_atuin_search_cmd) }
-    # })
+
+def hist-fzf [] {
+  let ignored = ["ls" "ll" "la" "history" "cd" "pwd" "clear" "c"]
+
+  let lines = (
+    history
+    | reverse
+    | where {|it|
+        let cmd = ($it.command | into string | str trim)
+        if $cmd == "" { return false }
+        let head = ($cmd | split words | get 0? | default "")
+        $head != "" and not ($ignored | any {|x| $x == $head })
+      }
+    | get command
+    | each {|c| $c | into string }
+    | str join "\n"
+  )
+
+  let sel = (
+    $lines
+    | ^fzf --layout=reverse --border=none --color=bg:-1,bg+:-1,gutter:-1,border:-1
+    | decode utf-8
+    | into string
+    | str trim
+  )
+
+  if ($sel | is-empty) { return }
+  try { commandline edit --replace $sel } catch { echo $sel }
 }
+
+def fzf-file [--multi(-m)] {
+  let preview_cmd = if (which bat | is-empty) {
+    "cat {}"
+  } else {
+    "bat --style=plain --color=always --line-range=:200 {}"
+  }
+
+  let out = (
+    ^fd --type f --hidden --follow --exclude .git -0
+    | ^fzf --read0 --print0 ($multi | if $in { "--multi" } else { "" }) --preview $preview_cmd
+    | into binary
+    | decode utf-8
+    | into string
+  )
+
+  if ($out | is-empty) { return }
+
+  let sels = (
+    $out
+    | split row "\u{0000}"
+    | where {|s| $s | is-not-empty }
+  )
+
+  if ($sels | is-empty) { return }
+
+  if $multi {
+    ^$env.EDITOR ...$sels
+  } else {
+    ^$env.EDITOR ($sels | first)
+  }
+}
+
+
+
+
+def fzf-cd [] {
+  let preview = if (which eza | is-empty) { "ls -la {}" } else { "eza -la --group-directories-first --icons=auto {}" }
+
+  let out = (
+    ^fd --type d --hidden --follow --exclude .git --strip-cwd-prefix -0
+    | ^fzf --read0 --no-multi --preview $preview --print0 --select-1 --exit-0
+    | into binary
+    | decode utf-8
+    | into string
+  )
+  if ($out | is-empty) { return }
+
+  let sel = (
+    $out
+    | split row "\u{0000}"         # <— dùng chuỗi NUL, không phải (char 0)
+    | where {|s| $s | is-not-empty }
+    | first
+    | str trim
+  )
+  if ($sel | is-empty) { return }
+  if (($sel | path type) != 'dir') { return }
+  cd $sel
+}
+
+
+
+def fzf-git-file [
+  --multi(-m)
+] {
+  let preview_cmd = if (which bat | is-empty) { 
+    "cat {}" 
+  } else { 
+    "bat --style=plain --color=always --line-range=:200 {}" 
+  }
+
+  # đang ở trong repo?
+  let in_repo = (do { ^git rev-parse --is-inside-work-tree } | complete | get stdout | str trim | default "")
+  
+  # NUL-delimited input giữ nguyên dạng binary để không mất \0
+  let input = if $in_repo == "true" {
+    ^git -c core.quotepath=off ls-files -z | into binary
+  } else {
+    ^fd --type f --hidden --follow --exclude .git -0 | into binary
+  }
+
+  # truyền NUL vào fzf và nhận lại NUL
+  let out = (
+    $input
+    | ^fzf --read0 ($multi | if $in { "--multi" } else { "" }) --preview $preview_cmd --print0
+    | into binary
+    | decode utf-8
+    | into string
+  )
+  if ($out | is-empty) { return }
+
+  let sels = (
+    $out
+    | split row "\u{0000}"
+    | where {|s| $s | is-not-empty }
+  )
+  if ($sels | is-empty) { return }
+
+  if $multi {
+    ^$env.EDITOR ...$sels
+  } else {
+    ^$env.EDITOR ($sels | first)
+  }
+}
+
+
+def fzf-open [
+  --cd
+  --multi(-m)
+] {
+  let preview = 'test -d {} && (eza -la --group-directories-first --icons=auto {} || ls -la {}) || (bat --style=plain --color=always --line-range=:200 {} || sed -n "1,200p" {})'
+
+  let out = (
+    ^fd --type f --type d --hidden --follow --exclude .git -0
+    | ^fzf --read0 ($multi | if $in { "--multi" } else { "" }) --preview $preview --print0
+    | into binary
+    | decode utf-8
+    | into string
+  )
+  if ($out | is-empty) { return }
+
+  let sels = (
+    $out
+    | split row "\u{0000}"   # <-- quan trọng: dùng chuỗi NUL
+    | where {|s| $s | is-not-empty }
+  )
+  if ($sels | is-empty) { return }
+
+  if $multi {
+    for p in $sels {
+      if (($p | path type) == 'dir') {
+        if $cd { cd $p } else { ^$env.EDITOR $p }
+      } else {
+        ^$env.EDITOR $p
+      }
+    }
+  } else {
+    let p = ($sels | first)
+    if (($p | path type) == 'dir') {
+      if $cd { cd $p } else { ^$env.EDITOR $p }
+    } else {
+      ^$env.EDITOR $p
+    }
+  }
+}
+
 
 # Custom functions
 def git-cleanup [] {
