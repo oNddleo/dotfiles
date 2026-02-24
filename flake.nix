@@ -7,17 +7,46 @@
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }:
+  outputs = { nixpkgs, home-manager, ... }:
   let
-    system = "aarch64-darwin"; # nếu Apple Silicon thì dùng aarch64-darwin
-    pkgs = import nixpkgs { inherit system; };
-  in {
-    homeConfigurations.longnd = home-manager.lib.homeManagerConfiguration {
-      inherit pkgs;
+    lib = nixpkgs.lib;
 
-      modules = [
-        ./home.nix
-      ];
-    };
+    systems = [
+      "x86_64-linux"
+      "aarch64-linux"
+      "x86_64-darwin"
+      "aarch64-darwin"
+    ];
+
+    mkHome = system:
+      home-manager.lib.homeManagerConfiguration {
+        pkgs = import nixpkgs { inherit system; };
+        modules = [ ./home.nix ];
+      };
+
+    homesBySystem = lib.genAttrs systems mkHome;
+
+    hostName =
+      let
+        hn = builtins.getEnv "HOSTNAME";
+        h = builtins.getEnv "HOST";
+        cn = builtins.getEnv "COMPUTERNAME";
+      in
+      if hn != "" then hn else if h != "" then h else cn;
+
+    currentSystem =
+      if builtins ? currentSystem then builtins.currentSystem else "";
+
+    defaultSystem =
+      if currentSystem != "" && builtins.hasAttr currentSystem homesBySystem
+      then currentSystem
+      else "x86_64-linux";
+  in {
+    homeConfigurations =
+      homesBySystem
+      // { default = homesBySystem.${defaultSystem}; }
+      // lib.optionalAttrs (hostName != "" && currentSystem != "" && builtins.hasAttr currentSystem homesBySystem) {
+        "${hostName}" = homesBySystem.${currentSystem};
+      };
   };
 }

@@ -179,3 +179,11 @@ uv --version
 ```
 
 Let me know if you need help adjusting the paths!
+
+---
+
+### Nix Run home manager
+
+```bash
+HOST="$(hostname)" nix run github:nix-community/home-manager/release-24.11 -- switch --impure --flake .#"$HOST" -L
+```

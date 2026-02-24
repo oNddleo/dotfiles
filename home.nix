@@ -8,9 +8,13 @@ let
 
 in
 {
-  home.username = "longnd";
-  home.homeDirectory = "/Users/longnd";
+  home.username = "vsf-longnd56-l";
+  home.homeDirectory =
+    if pkgs.stdenv.isDarwin
+    then "/Users/${config.home.username}"
+    else "/home/${config.home.username}";
   home.stateVersion = "24.11";
+  home.enableNixpkgsReleaseCheck = false;
 
   programs.home-manager.enable = true;
 
@@ -27,6 +31,7 @@ in
 
     # AWS CLI v2
     awscli2
+    aws-vault
 
     # K8s
     kubectl
@@ -44,6 +49,9 @@ in
     jdk21
     maven
     gradle
+
+    # NodeJS
+    nodejs
 
     # Build deps (useful for native modules / rust crates)
     pkg-config
@@ -65,6 +73,11 @@ in
     fastfetch
     lazygit
     k9s
+
+    # Shell enhancements
+    fzf
+    starship
+    atuin
   ];
 
   programs.zsh = {
@@ -86,16 +99,35 @@ in
 
     # Aliases
     shellAliases = {
-      ll = "eza -lah --group-directories-first";
-      ls = "eza";
+      ll = "ls -alF";
+      la = "ls -A";
+      l = "ls -CF";
+
       cat = "bat";
       grep = "rg";
       find = "fd";
       g = "git";
+
       k = "kubectl";
+      k9 = "k9s";
+      kg = "kubectl get";
+      kgp = "kubectl get pods";
+      kgs = "kubectl get services";
+      kgd = "kubectl get deployments";
+      kgn = "kubectl get nodes";
+      kd = "kubectl describe";
+      kdp = "kubectl describe pod";
+      kl = "kubectl logs";
+      ke = "kubectl exec -it";
+      kaf = "kubectl apply -f";
+      kdf = "kubectl delete -f";
+      kctx = "kubectl config use-context";
+      kns = "kubectl config set-context --current --namespace";
+      kp = "kubectl port-forward";
+      kcc = "kubectl config current-context";
     };
 
-    profileExtra = ''
+    profileExtra = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
       export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
     '';
 
@@ -105,6 +137,7 @@ in
       export PATH="$HOME/.nix-profile/bin:$PATH"
       export PATH="$HOME/.local/state/nix/profiles/profile/bin:$PATH"
       export PATH="$HOME/.local/state/nix/profiles/home-manager/home-path/bin:$PATH"
+      export PATH="$(npm config get prefix)/bin:$PATH"
 
       # Starship prompt
       eval "$(starship init zsh)"
@@ -126,6 +159,13 @@ in
 
       # Atuin (history search)
       eval "$(atuin init zsh)"
+
+      # Load IBus (Vietnamese Keyboard) on Ubuntu only
+      if [ -f /etc/os-release ] && grep -q '^ID=ubuntu$' /etc/os-release; then
+        export GTK_IM_MODULE=ibus
+        export QT_IM_MODULE=ibus
+        export XMODIFIERS=@im=ibus
+      fi
     '';
   };
 
@@ -162,7 +202,10 @@ in
         format = "on [$profile]($style) ";
       };
       custom.cpu = {
-        command = "top -l 1 | grep 'CPU usage' | awk '{print $3}'";
+        command =
+          if pkgs.stdenv.isDarwin
+          then "top -l 1 | grep 'CPU usage' | awk '{print $3}'"
+          else "top -bn1 | awk '/Cpu\\(s\\)/ {print $2}'";
         when = "true";
         format = "[CPU $output]($style) ";
         style = "bold red";
